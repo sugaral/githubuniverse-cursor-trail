@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cursor-trail/ · GitHub Universe 方块轨迹复刻</title>
+    <meta
+      name="description"
+      content="用 20px 网格 + 10 个固定定位节点，复刻 githubuniverse.com 鼠标移动出现方块的光标轨迹。"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__inner">
+        <span class="topbar__brand">cursor-trail/</span>
+        <nav class="topbar__nav" aria-label="页面导航">
+          <a href="#demo">demo</a>
+          <a href="#how">how-it-works</a>
+        </nav>
+        <span class="topbar__hint">move your mouse →</span>
+      </div>
+    </header>
+
+    <main class="page">
+      <!-- 允许出现方块：trailAnimationArea -->
+      <section id="demo" class="hero trailAnimationArea">
+        <div class="hero__inner">
+          <!-- 不希望出现方块的内容：trailAnimationIgnore -->
+          <p class="eyebrow trailAnimationIgnore">
+            20px grid · 10 slots · 100–400ms lifetime
+          </p>
+          <h1 class="hero__title trailAnimationIgnore">
+            move-your-cursor<span class="caret" aria-hidden="true">_</span>
+          </h1>
+          <p class="hero__lede trailAnimationIgnore">
+            githubuniverse.com 的光标方块轨迹，最小复刻。光标进入 20px 网格的新格子时，
+            复用池里的一个方块，随机品牌色和 ASCII 字符，100–400ms 后缩回。
+          </p>
+          <div class="hero__actions trailAnimationIgnore">
+            <button class="btn btn--solid" type="button">按钮上不触发</button>
+            <a class="btn" href="#how">看实现</a>
+          </div>
+          <p class="hero__footnote">
+            在空白背景上移动鼠标；文字、按钮和控制面板都会把事件“吃掉”。
+          </p>
+        </div>
+      </section>
+
+      <section class="lab trailAnimationArea" aria-labelledby="lab-title">
+        <div class="lab__controls trailAnimationIgnore">
+          <div class="lab__head">
+            <h2 id="lab-title">参数</h2>
+            <p>改动后立即重建方块池，统计会归零。</p>
+          </div>
+
+          <label class="control">
+            <span class="control__label">
+              <span>网格大小</span>
+              <span id="grid-value">20 px</span>
+            </span>
+            <select id="grid-size">
+              <option value="12">12 px</option>
+              <option value="16">16 px</option>
+              <option value="20" selected>20 px（原站）</option>
+              <option value="24">24 px</option>
+              <option value="32">32 px</option>
+            </select>
+          </label>
+
+          <label class="control">
+            <span class="control__label">
+              <span>方块池</span>
+              <span id="pool-value">10</span>
+            </span>
+            <input id="pool-size" type="range" min="4" max="20" step="1" value="10" />
+          </label>
+
+          <label class="control control--check">
+            <input id="pause" type="checkbox" />
+            <span>暂停轨迹</span>
+          </label>
+
+          <label class="control control--check">
+            <input id="grid-overlay" type="checkbox" />
+            <span>显示网格基准线</span>
+          </label>
+
+          <div class="control control--actions">
+            <button id="reset" class="btn btn--small" type="button">清空并重置</button>
+          </div>
+
+          <p class="reduced-note" id="reduced-motion-note" hidden>
+            系统启用了“减少动态效果”，轨迹已自动禁用。
+          </p>
+
+          <dl class="stats" aria-live="polite">
+            <div>
+              <dt>触发次数</dt>
+              <dd id="stat-spawned">0</dd>
+            </div>
+            <div>
+              <dt>当前活跃</dt>
+              <dd id="stat-active">0</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="lab__notes trailAnimationIgnore">
+          <h3>这块卡片为什么不出方块？</h3>
+          <p>
+            它带有 <code>trailAnimationIgnore</code>。鼠标在卡片内移动时，
+            事件目标会命中这个子树，组件直接返回。
+          </p>
+
+          <h3>只有空白背景会触发</h3>
+          <p>
+            纯文本叶子节点、<code>&lt;a&gt;</code>、<code>&lt;button&gt;</code>
+            以及 ignore 子树都会被跳过，避免方块盖住内容。
+          </p>
+
+          <h3>方块从哪来？</h3>
+          <p>
+            页面底部只有一个固定层：10 个 20×20 的 div 循环复用。
+            颜色和字符每次随机，DOM 数量恒定。
+          </p>
+        </div>
+      </section>
+
+      <section id="how" class="how trailAnimationArea">
+        <div class="how__inner">
+          <p class="eyebrow trailAnimationIgnore">how-it-works/</p>
+          <h2 class="how__title trailAnimationIgnore">四步，二十行核心逻辑</h2>
+
+          <ol class="steps trailAnimationIgnore">
+            <li>
+              <div>
+                <h3>区域 opt-in</h3>
+                <p>
+                  只给 <code>.trailAnimationArea</code> 绑定 <code>mousemove</code>；
+                  命中 <code>.trailAnimationIgnore</code> 子树时直接返回。
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>光标量化到网格</h3>
+                <p>
+                  用视口坐标取整，而不是元素内坐标；方块是 fixed 定位，
+                  所以滚动时网格仍然对齐。
+                </p>
+                <pre><code>const x = Math.floor(event.clientX / grid) * grid;
+const y = Math.floor(event.clientY / grid) * grid;
+if (x === lastX &amp;&amp; y === lastY) return;</code></pre>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>池化复用 + 随机外观</h3>
+                <p>
+                  10 个方块轮流使用；每次激活随机取一个品牌色和一个 ASCII 字符，
+                  30% 概率是空格（纯色块）。
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>CSS 负责生命周期</h3>
+                <p>
+                  激活时加 <code>is-active</code>，内部色块
+                  <code>scale(0) → scale(1)</code>；定时器移除 class 后自动缩回。
+                </p>
+                <pre><code>.trail-block__color {
+  transform: scale(0);
+  transition: transform .1s cubic-bezier(.3,.41,.04,1.01);
+}
+.trail-block.is-active .trail-block__color { transform: scale(1); }</code></pre>
+              </div>
+            </li>
+          </ol>
+
+          <p class="how__note trailAnimationIgnore">
+            原站还监听 River 标题，并在
+            <code>prefers-reduced-motion: reduce</code> 时完全不渲染。
+            本示例同样支持；拖动上方参数可对比不同网格和池大小。
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>复刻自 githubuniverse.com 的 CursorTrailAnimation，仅用于学习与实验。</span>
+      <span>no build · no dependencies</span>
+    </footer>
+
+    <script src="trail.js" defer></script>
+    <script src="demo.js" defer></script>
+  </body>
+</html>
